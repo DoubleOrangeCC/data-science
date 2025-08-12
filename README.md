@@ -129,6 +129,8 @@ rename table userbehavior_dedup to userbehavior;
 ```sql
 select min(datetime) as min, max(datetime) as max from userbehavior_10w;
 ```
+![项目主页截图](screenshots/行为时间极值.png)
+
 删除异常数据  
 ```sql
 delete  
