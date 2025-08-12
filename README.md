@@ -119,40 +119,56 @@ from userbehavior;
 drop table userbehavior;
 #改新表为原表名  
 rename table userbehavior_dedup to userbehavior;
-  
 ```
-
-```
-
 ### 处理异常值
-数据集介绍中虽然显示时间区间为2017年11月25日至2017年12月3日,但查询发现仍有不在此区间的数据(此处定义为异常数据)
+
+查询行为日期极值
 ```sql
-select min(datetime) as min, max(datetime) as max from userbehavior_10w;
+select min(datetime) as min, max(datetime) as max from userbehavior;
 ```
-![项目主页截图](screenshots/行为时间极值.png)
+数据描述的时间区间为2017年11月25日至2017年12月3日, 但查询显示仍有不在此区间的数据,此处定义为异常数据
+
+查询异常值数量
+```sql
+with cte as (select *  
+  from userbehavior  
+  where datetime > '2017-12-03 23:59:59'  
+  or datetime < '2017-11-25 00:00:00'  
+  order by datetime)  
+select count(1) as cnt  
+from cte;
+```
+查询显示有55258行异常数据
 
 删除异常数据  
 ```sql
+#注意:时间戳存在负数,MySQL数据库默认时间戳以1970年为基点,说明存在1970年前的数据,但都不符合数据描述中的时间区间,而负数时间戳在进行from_unixtime()转化的时候会输出null值,因此将null值也一起删除
 delete  
-from userbehavior_10w  
+from userbehavior
 where datetime > '2017-12-03 23:59:59'  
-  or datetime < '2017-11-25 00:00:00';
+  or datetime < '2017-11-25 00:00:00'
+  or datetime is null;
 ```
 ## 数据分析
-
-### 数据总览
-
-```sql
-select count(distinct user_id)     as '总用户数',  
-       count(distinct item_id)     as '总商品数',  
-       count(distinct category_id) as '总商品类目数',  
-       count(behavior)             as '行为总次数'  
-from userbehavior_10w;
-```
 
 将数据集分为用户和商品两个维度进行数据分析
 
 后续所有SQL语句均储存为视图以便Tableau直接调用
+
+### 数据总览
+
+每日数据总览  
+```sql
+create view 每日数据总览 as  
+select date,  
+  count(distinct user_id) as '总用户数',  
+  count(distinct item_id) as '总商品数',  
+  count(distinct category_id) as '总商品类目数',  
+  count(behavior) as '行为总次数'  
+from userbehavior  
+group by date  
+order by date;
+```
 
 ### 用户
 
@@ -174,26 +190,25 @@ order by 2;
 每日独立访客UV  
 平均每人页面访问量PV/UV
 ```sql
-create view 每日用户活跃 as
+create view 每日用户活跃 as  
 select date,  
-       sum(case when behavior = 'pv' then 1 else 0 end) as 'PV',  
-       count(distinct user_id)                          as 'UV',  
-       sum(case when behavior = 'pv' then 1 else 0 end) / count(distinct user_id) 
-													    as 'PV/UV'  
-from userbehavior_10w  
+       sum(case when behavior = 'pv' then 1 else 0 end)                           as 页面点击量,  
+       count(distinct user_id)                                                    as 独立访客,  
+       sum(case when behavior = 'pv' then 1 else 0 end) / count(distinct user_id) as 平均每人页面访问量  
+from userbehavior  
 group by date  
 order by date;
 ```
 每日跳失率
 ```sql
-create view 每日跳失率 as  
-with cte as (SELECT user_id, date from userbehavior_10w group by user_id, date having count(*) = 1),  
-     cte2 as (SELECT user_id, date from userbehavior_10w group by user_id, date),  
+create view 跳失率 as  
+with cte as (SELECT user_id, date from userbehavior group by user_id, date having count(*) = 1),  
+     cte2 as (SELECT user_id, date from userbehavior group by user_id, date),  
      cte3 as (select date, count(*) as cnt from cte group by date),  
      cte4 as (select date, count(*) as cnt from cte2 group by date)  
 select cte3.date, cte3.cnt / cte4.cnt as '跳失率'  
 from cte3  
-         join cte4 on cte3.date = cte4.date  
+  join cte4 on cte3.date = cte4.date  
 order by date;
 ```
 
@@ -206,10 +221,10 @@ order by date;
 ```sql
 #初版:使用datediff()函数建立表连接,查询因此没有走索引,同时由于数据过多,自连接效率低下,查询速度相当慢
 with cte as (select u1.date, count(distinct u1.user_id) as cnt1  
-             from userbehavior_10w u1  
-                      join userbehavior_10w u2 on datediff(u2.date, u1.date) = 1 and u1.user_id = u2.user_id  
+             from userbehavior u1  
+                      join userbehavior u2 on datediff(u2.date, u1.date) = 1 and u1.user_id = u2.user_id  
              group by u1.date),  
-     cte2 as (select date, count(distinct user_id) as cnt2 from userbehavior_10w group by date)  
+     cte2 as (select date, count(distinct user_id) as cnt2 from userbehavior group by date)  
 select cte.date, cnt1 / cnt2 as "retention1"  
 from cte  
          join cte2 on cte.date = cte2.date  
@@ -220,7 +235,7 @@ order by 1;
 WITH user_activity AS (SELECT user_id,  
                               date,  
                               LEAD(date) OVER (PARTITION BY user_id ORDER BY date) AS next_date  
-                       FROM userbehavior_10w)  
+                       FROM userbehavior)  
 SELECT date,  
        COUNT(DISTINCT user_id)                                     AS active_users,  
        SUM(CASE WHEN next_date = date + INTERVAL 1 DAY THEN 1 END) AS retained_users,  
@@ -231,67 +246,67 @@ ORDER BY date;
 ```
 ```sql
 #最终版本:在第一个CTE就提前聚合
-WITH user_activity AS (SELECT user_id,  
-  date,  
-  LEAD(date) OVER (PARTITION BY user_id ORDER BY date) AS next_date  
-  FROM userbehavior_10w  
-  GROUP BY user_id, date)  
-SELECT date,  
-  COUNT(DISTINCT user_id) AS active_users,  
-  SUM(CASE  
- WHEN next_date = date + INTERVAL 1 DAY THEN 1 END) AS retained_users,  
-  SUM(CASE  
- WHEN next_date = date + INTERVAL 1 DAY THEN 1 END) / COUNT(DISTINCT user_id) AS retention1  
-FROM user_activity  
-WHERE date <= '2017-12-02'  
-GROUP BY date  
-ORDER BY date;
+create view `基于活跃用户的次日留存率` as  
+with user_activity as (select user_id,  
+                              date,  
+                              lead(date) over (partition by user_id order by date) as next_date  
+  from userbehavior  
+  group by user_id, date)  
+select date as `日期`,  
+       count(distinct user_id)                                                               as `活跃用户数`,  
+       sum(case when next_date = date + interval 1 day then 1 end)                           as `次日活跃用户数`,  
+       sum(case when next_date = date + interval 1 day then 1 end) / count(distinct user_id) as `次日留存率`  
+from user_activity  
+where date <= '2017-12-02'  
+group by date  
+order by date;
 ```
 三日留存率
 ```sql
-WITH user_activity AS (SELECT user_id,  
+create view `基于活跃用户的三日留存率` as  
+with user_activity as (select user_id,  
                               date,  
-                              LEAD(date) OVER (PARTITION BY user_id ORDER BY date) AS next_date  
-                       FROM userbehavior_10w  
-                       GROUP BY user_id, date)  
-SELECT date,  
-       COUNT(DISTINCT user_id)                                                              AS active_users,  
-       SUM(CASE  
- WHEN next_date = date + INTERVAL 3 DAY THEN 1 END)                           AS retained_users,  
-       SUM(CASE  
- WHEN next_date = date + INTERVAL 3 DAY THEN 1 END) / COUNT(DISTINCT user_id) AS retention3  
-FROM user_activity  
-WHERE date <= '2017-12-02'  
-GROUP BY date  
-ORDER BY date;
+                              lead(date) over (partition by user_id order by date) as next_date  
+  from userbehavior  
+  group by user_id, date)  
+select date as `日期`,  
+       count(distinct user_id)                                                               as `活跃用户数`,  
+       sum(case when next_date = date + interval 3 day then 1 end)                           as `三日活跃用户数`,  
+       sum(case when next_date = date + interval 3 day then 1 end) / count(distinct user_id) as `三日留存率`  
+from user_activity  
+where date <= '2017-12-02'  
+group by date  
+order by date;
 ```
-基于活跃用户的留存率:
+基于新增用户的留存率:
 
 次日留存率
 ```sql
-with cte as (select user_id, min(date) as date from userbehavior_10w group by user_id),  
+create view 基于新增用户的次日留存率 as  
+with cte as (select user_id, min(date) as date from userbehavior group by user_id),  
      cte2 as (select cte.date, count(distinct cte.user_id) as cnt  
-              from cte  
-                       join userbehavior_10w u on u.date = cte.date + interval 1 day and cte.user_id = u.user_id  
-              group by date),  
+  from cte  
+  join userbehavior u on u.date = cte.date + interval 1 day and cte.user_id = u.user_id  
+  group by date),  
      cte3 as (select date, count(user_id) as cnt2 from cte group by date)  
-select cte3.date, cnt / cnt2 as retention1  
+select cte3.date as '日期', cnt / cnt2 as '次日留存率'  
 from cte3  
-         left join cte2 on cte2.date = cte3.date  
+  left join cte2 on cte2.date = cte3.date  
 order by cte3.date;
 ```
 
 三日留存率
 ```sql
-with cte as (select user_id, min(date) as date from userbehavior_10w group by user_id),  
+create view 基于新增用户的三日留存率 as  
+with cte as (select user_id, min(date) as date from userbehavior group by user_id),  
      cte2 as (select cte.date, count(distinct cte.user_id) as cnt  
-              from cte  
-                       join userbehavior_10w u on u.date = cte.date + interval 3 day and cte.user_id = u.user_id  
-              group by date),  
+  from cte  
+  join userbehavior u on u.date = cte.date + interval 3 day and cte.user_id = u.user_id  
+  group by date),  
      cte3 as (select date, count(user_id) as cnt2 from cte group by date)  
-select cte3.date, cnt / cnt2 as retention3  
+select cte3.date as '日期', cnt / cnt2 as '三日留存率'  
 from cte3  
-         left join cte2 on cte2.date = cte3.date  
+  left join cte2 on cte2.date = cte3.date  
 order by cte3.date;
 ```
 
@@ -299,7 +314,7 @@ order by cte3.date;
 
 总用户行为数量  
 ```sql
-select behavior, count(*) as cnt from userbehavior_10w group by behavior order by cnt;
+select behavior, count(*) as cnt from userbehavior group by behavior order by cnt;
 ```
 漏斗模型
 
@@ -316,7 +331,7 @@ select date,
        sum(case when behavior = 'cart' then 1 else 0 end) as 加购量,  
        sum(case when behavior = 'fav' then 1 else 0 end)   as 收藏量,  
        sum(case when behavior = 'buy' then 1 else 0 end) as 购买量  
-from userbehavior_10w group by date, hour order by date, hour;
+from userbehavior group by date, hour order by date, hour;
 ```
 
 用户不同行为真值表
@@ -328,15 +343,11 @@ select user_id,
   max(case when behavior = 'cart' then 1 else 0 end) as cart,  
   max(case when behavior = 'fav' then 1 else 0 end) as fav,  
   max(case when behavior = 'buy' then 1 else 0 end) as buy  
-from userbehavior_10w  
+from userbehavior  
 group by user_id;
 ```
 不同行为路径用户数
 ```sql
-#增加索引  
-ALTER TABLE userbehavior_10w  
-    ADD INDEX idx_user_item_behavior (user_id, behavior);
-    
 with cte as (select case  
  when pv = 1 and cart = 0 and fav = 0 and buy = 0 then '仅浏览'  
   when pv = 1 and cart = 1 and fav = 0 and buy = 0 then '浏览-加购'  
@@ -363,7 +374,7 @@ order by cnt desc;
 最近消费距今(Recency)
 ```sql
 with cte as (select user_id, datediff('2017-12-03', max(date)) as date_interval, count(*) as cnt  
-             from userbehavior_10w  
+             from userbehavior 
              where behavior = 'buy'  
   group by user_id)  
 select date_interval as '最近消费距今天数' , count(*) as '人数' from cte group by date_interval order by date_interval;
@@ -376,7 +387,7 @@ select date_interval as '最近消费距今天数' , count(*) as '人数' from c
 消费频次(Frequency)
 ```sql
 with cte as (select user_id, datediff('2017-12-03', max(date)) as date_interval, count(*) as cnt  
-             from userbehavior_10w  
+             from userbehavior
              where behavior = 'buy'  
   group by user_id)  
 select cnt as '购买频次', count(*) as '人数' from cte group by cnt order by 1;
@@ -389,7 +400,7 @@ select cnt as '购买频次', count(*) as '人数' from cte group by cnt order b
 使用RFM模型打分且划分用户分类标签
 ```sql
 with cte as (select user_id, datediff('2017-12-03', max(date)) as date_interval, count(*) as cnt  
-             from userbehavior_10w  
+             from userbehavior 
              where behavior = 'buy'  
   group by user_id),  
      cte2 as (select user_id,  
@@ -423,7 +434,7 @@ select tag, count(*) as cnt from cte3 group by tag order by cnt;
 
 ```sql
 create view 商品各指标top10 as  
-with cte as (select item_id, count(*) as cnt, behavior from userbehavior_10w group by item_id, behavior),  
+with cte as (select item_id, count(*) as cnt, behavior from userbehavior group by item_id, behavior),  
      cte2 as (select item_id, behavior, cnt, row_number() over (partition by behavior order by cnt desc) as rn from cte)  
 select item_id, behavior, cnt  
 from cte2  
@@ -442,7 +453,7 @@ WITH cte AS (
     SELECT item_id,  
            SUM(CASE WHEN behavior = 'pv' THEN 1 ELSE 0 END) AS 浏览量,  
            SUM(CASE WHEN behavior = 'buy' THEN 1 ELSE 0 END) AS 购买量  
-  FROM userbehavior_10w  
+  FROM userbehavior  
     WHERE behavior IN ('pv','buy')  
     GROUP BY item_id  
 ),  
@@ -465,7 +476,7 @@ create view 商品四象限散点分布图 as
 select item_id,  
        sum(case when behavior = 'pv' then 1 else 0 end)  as '浏览量',  
        sum(case when behavior = 'buy' then 1 else 0 end) as '购买量'  
-from userbehavior_10w  
+from userbehavior
 where behavior in ('pv', 'buy')  
 group by item_id;
 ```
