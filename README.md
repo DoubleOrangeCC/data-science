@@ -225,7 +225,7 @@ order by date;
 
 基于活跃用户的留存率
 
-次日留存率(记录了一些代码优化的过程)
+次日留存率(记录了一些代码优化的过程,自连接优化成偏移窗口函数+索引将查询时间从1h+优化到2min)
 ```sql
 #初版:使用datediff()函数建立表连接,查询因此没有走索引,同时由于数据过多,自连接效率低下,查询速度相当慢
 with cte as (select u1.date, count(distinct u1.user_id) as cnt1  
