@@ -98,7 +98,7 @@ where user_id is null
  or behavior is null  
  or datetime is null;
 ```
-缺失率为0
+查询发现数据集的质量较高,缺失值数量为0
 
 ### 处理重复值
 
@@ -126,6 +126,7 @@ rename table userbehavior_dedup to userbehavior;
 ```sql
 select min(datetime) as min, max(datetime) as max from userbehavior;
 ```
+
 数据描述的时间区间为2017年11月25日至2017年12月3日, 但查询显示仍有不在此区间的数据,此处定义为异常数据
 
 查询异常值数量
