@@ -40,7 +40,7 @@ UserBehavior是阿里巴巴提供的一个淘宝用户行为数据集,用于隐�
 5. 选择 `.csv` 文件路径
 6. 新建表并命名`userbehavior`
 7.  点击 `确认导入`
-
+![图片描述](screenshots/数据导入.png)      
 ### 修改表字段
 
 源数据表字段不明确,修改字段名称和数据类型并且添加汉语注释  
@@ -126,8 +126,9 @@ rename table userbehavior_dedup to userbehavior;
 ```sql
 select min(datetime) as min, max(datetime) as max from userbehavior;
 ```
+![图片描述](screenshots/行为时间极值.png)
 
-数据描述的时间区间为2017年11月25日至2017年12月3日, 但查询显示仍有不在此区间的数据,此处定义为异常数据
+数据集描述的时间区间应为2017年11月25日至2017年12月3日, 但查询显示仍有不在此区间的数据,此处定义为异常数据
 
 查询异常值数量
 ```sql
@@ -139,6 +140,8 @@ with cte as (select *
 select count(1) as cnt  
 from cte;
 ```
+![图片描述](screenshots/异常值数量.png)
+
 查询显示有55258行异常数据
 
 删除异常数据  
@@ -170,7 +173,7 @@ from userbehavior
 group by date  
 order by date;
 ```
-
+![图片描述](screenshots/每日数据总览.png)  
 ### 用户
 
 #### 用户获取
@@ -186,6 +189,7 @@ from cte
 group by fir_d  
 order by 2;
 ```
+![图片描述](screenshots/每日新增用户.png)  
 #### 用户活跃
 活跃指标
 
@@ -202,6 +206,7 @@ from userbehavior
 group by date  
 order by date;
 ```
+![图片描述](screenshots/每日用户活跃.png)  
 每日跳失率
 ```sql
 create table 每日跳失率 as  
@@ -214,7 +219,7 @@ from cte3
   join cte4 on cte3.date = cte4.date  
 order by date;
 ```
-
+![图片描述](screenshots/每日跳失率.png)  
 
 #### 用户留存
 
@@ -264,6 +269,8 @@ where date <= '2017-12-02'
 group by date  
 order by date;
 ```
+![图片描述](screenshots/活跃用户次日留存.png)  
+
 三日留存率
 ```sql
 create table 基于活跃用户的三日留存率 as  
@@ -281,6 +288,8 @@ where date <= '2017-12-02'
 group by date  
 order by date;
 ```
+![图片描述](screenshots/活跃用户三日留存.png)  
+
 基于新增用户的留存率:
 
 次日留存率
@@ -297,6 +306,7 @@ from cte3
   left join cte2 on cte2.date = cte3.date  
 order by cte3.date;
 ```
+![图片描述](screenshots/新增用户次日留存.png)  
 
 三日留存率
 ```sql
@@ -312,6 +322,7 @@ from cte3
   left join cte2 on cte2.date = cte3.date  
 order by cte3.date;
 ```
+![图片描述](screenshots/新增用户三日留存.png)  
 
 #### 用户行为
 
@@ -329,12 +340,23 @@ from userbehavior
 group by date, hour  
 order by date, hour;
 ```
+![图片描述](screenshots/用户每日分时行为一览.png)  
+
+
+总行为计数
+```sql
+create table 总行为计数 as  
+select behavior, count(*) as cnt from userbehavior group by behavior order by cnt;
+```
+![图片描述](screenshots/总行为计数.png)  
+
 去重用户行为计数
   
 ```sql
 create table 去重用户行为计数 as  
-select behavior, count(*) as cnt from userbehavior group by behavior order by cnt;
+select behavior, count(distinct user_id) as cnt from userbehavior group by behavior order by cnt;
 ```
+![图片描述](screenshots/去重用户行为计数.png)  
 
 用户不同行为真值表
 ```sql
@@ -348,6 +370,8 @@ select user_id,
 from userbehavior  
 group by user_id;
 ```
+![图片描述](screenshots/用户不同行为真值表.png) 
+
 不同行为路径用户数
 ```sql
 with cte as (select case  
@@ -365,6 +389,8 @@ where path is not null
 group by path  
 order by cnt desc;
 ```
+![图片描述](screenshots/不同行为路径用户数.png) 
+
 #### 用户分类
 
 用户价值模型RFM
@@ -385,6 +411,8 @@ from cte
 group by date_interval  
 order by date_interval;
 ```
+![图片描述](screenshots/最近消费距今天数对应人数图.png) 
+
 根据斜率变化自定义R的得分  
 • 0-2天: 3分  
 • 3-5天: 2分  
@@ -402,6 +430,8 @@ from cte
 group by cnt  
 order by 1;
 ```
+![图片描述](screenshots/购买频次对应人数图.png) 
+
 明显的长尾分布  
 • 绝大多数用户（几万）只买过 1~3 次  
 • 少数用户（个位数）买了几十到上百次  
@@ -441,7 +471,7 @@ from cte3
 group by tag  
 order by cnt;
 ```
-
+![图片描述](screenshots/购买频次对应人数图.png) 
 ### 商品
 
 #### 商品各指标TOP10
