@@ -28,10 +28,14 @@ UserBehavior是阿里巴巴提供的一个淘宝用户行为数据集,用于隐�
 | cart | 将商品加入购物车| 
 | fav |收藏商品| 
 
+## 数据分析体系搭建
+
+![图片描述](screenshots/指标搭建.png)  
+
 ## 数据预处理
 
 ### 数据导入
-图形化数据库管理工具选择: Datagrip
+图形化数据库管理工具: Datagrip
 
 1. 新建数据库`userbehavior`
 2. 右键`userbehavior`
@@ -190,12 +194,16 @@ group by fir_d
 order by 2;
 ```
 ![图片描述](screenshots/每日新增用户.png)  
+![图片描述](screenshots/每日新增用户2.png)  
+
 #### 用户活跃
+
 活跃指标
 
 每日页面点击量PV  
 每日独立访客UV  
 平均每人页面访问量PV/UV
+
 ```sql
 create table 每日用户活跃 as  
 select date as '日期',  
@@ -207,6 +215,8 @@ group by date
 order by date;
 ```
 ![图片描述](screenshots/每日用户活跃.png)  
+![图片描述](screenshots/每日用户活跃2.png)  
+
 每日跳失率
 ```sql
 create table 每日跳失率 as  
@@ -324,7 +334,26 @@ order by cte3.date;
 ```
 ![图片描述](screenshots/新增用户三日留存.png)  
 
+
 #### 用户行为
+
+总行为计数
+
+```sql
+create table 总行为计数 as  
+select behavior, count(*) as cnt from userbehavior group by behavior order by cnt;
+```
+![图片描述](screenshots/总行为计数.png)  
+![图片描述](screenshots/总行为计数2.png) 
+
+去重用户行为计数
+  
+```sql
+create table 去重用户行为计数 as  
+select behavior, count(distinct user_id) as cnt from userbehavior group by behavior order by cnt;
+```
+![图片描述](screenshots/去重用户行为计数.png)  
+![图片描述](screenshots/去重用户行为计数2.png)  
 
 每日分时行为一览
 
@@ -341,24 +370,11 @@ group by date, hour
 order by date, hour;
 ```
 ![图片描述](screenshots/用户每日分时行为一览.png)  
-
-
-总行为计数
-```sql
-create table 总行为计数 as  
-select behavior, count(*) as cnt from userbehavior group by behavior order by cnt;
-```
-![图片描述](screenshots/总行为计数.png)  
-
-去重用户行为计数
-  
-```sql
-create table 去重用户行为计数 as  
-select behavior, count(distinct user_id) as cnt from userbehavior group by behavior order by cnt;
-```
-![图片描述](screenshots/去重用户行为计数.png)  
+![图片描述](screenshots/用户分日行为.png)  
+![图片描述](screenshots/用户分时行为.png)  
 
 用户不同行为真值表
+
 ```sql
 #基于用户  
 create table 用户不同行为真值表 as  
@@ -471,7 +487,8 @@ from cte3
 group by tag  
 order by cnt;
 ```
-![图片描述](screenshots/购买频次对应人数图.png) 
+![图片描述](screenshots/用户价值分类.png) 
+
 ### 商品
 
 #### 商品各指标TOP10
@@ -485,6 +502,11 @@ from cte2
 where rn <= 10  
 order by behavior;
 ```
+
+![图片描述](screenshots/buytop10.png) 
+![图片描述](screenshots/carttop10.png) 
+![图片描述](screenshots/favtop10.png) 
+![图片描述](screenshots/pvtop10.png) 
 
 #### 商品四象限分析
 
@@ -524,3 +546,4 @@ from userbehavior
 where behavior in ('pv', 'buy')  
 group by item_id;
 ```
+![图片描述](screenshots/商品四象限散点分布.png) 
