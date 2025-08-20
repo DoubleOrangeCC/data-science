@@ -448,7 +448,7 @@ with cte as (select user_id, datediff('2017-12-03', max(date)) as date_interval,
 select cnt as '购买频次', count(*) as '人数'  
 from cte  
 group by cnt  
-order by 1;
+order by cnt;
 ```
 ![图片描述](screenshots/购买频次对应人数图.png) 
 
