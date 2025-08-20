@@ -280,6 +280,7 @@ group by date
 order by date;
 ```
 ![图片描述](screenshots/活跃用户次日留存.png)  
+![图片描述](screenshots/用户留存.png)  
 
 三日留存率
 ```sql
