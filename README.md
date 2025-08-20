@@ -189,7 +189,7 @@ order by date;
 ```sql
 #由于数据集时间只包含特定日期段,因此假设'2017-11-25'为所有数据的初始日期
 create table 每日新增用户 as  
-with cte as (select user_id, min(date) as 'fir_d' from userbehavior_10w group by user_id)  
+with cte as (select user_id, min(date) as 'fir_d' from userbehavior group by user_id)  
 select count(user_id) as '新增用户数', fir_d as '日期'  
 from cte  
 group by fir_d  
