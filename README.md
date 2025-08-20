@@ -130,7 +130,9 @@ rename table userbehavior_dedup to userbehavior;
 ```sql
 select min(datetime) as min, max(datetime) as max from userbehavior;
 ```
+
 ![图片描述](screenshots/行为时间极值.png)
+
 
 数据集描述的时间区间应为2017年11月25日至2017年12月3日, 但查询显示仍有不在此区间的数据,此处定义为异常数据
 
