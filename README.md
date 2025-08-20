@@ -407,6 +407,7 @@ group by path
 order by cnt desc;
 ```
 ![图片描述](screenshots/不同行为路径用户数.png) 
+![图片描述](screenshots/不同行为路径用户数2.png) 
 
 #### 用户分类
 
@@ -503,11 +504,21 @@ from cte2
 where rn <= 10  
 order by behavior;
 ```
+![图片描述](screenshots/item_buy_top10.png) 
 
-![图片描述](screenshots/buytop10.png) 
-![图片描述](screenshots/carttop10.png) 
-![图片描述](screenshots/favtop10.png) 
-![图片描述](screenshots/pvtop10.png) 
+#### 商品品类各指标TOP10
+
+```sql
+create table 商品类目各指标top10 as
+with cte as (select category_id, behavior, count(*) as cnt from userbehavior group by category_id, behavior),
+     cte2 as (select category_id, behavior, cnt, row_number() over (partition by behavior order by cnt desc) as rn
+              from cte)
+select category_id, behavior, cnt, rn
+from cte2
+where rn <= 10
+order by behavior, category_id;
+```
+![图片描述](screenshots/category_buy_top10.png) 
 
 #### 商品四象限分析
 
@@ -535,7 +546,7 @@ SELECT MIN(CASE WHEN rn_pv >= total_cnt * 0.999 THEN 浏览量 END)  AS 浏览�
        MIN(CASE WHEN rn_buy >= total_cnt * 0.999 THEN 购买量 END) AS 购买量_99分位  
 FROM ranked;
 ```
-浏览量250/购买量10
+
 
  商品四象限散点分布图
 ```sql
