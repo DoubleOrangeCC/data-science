@@ -526,18 +526,21 @@ order by behavior, category_id;
 
 取两个关键维度: 浏览,购买
 
-取99.9%分位数作为参考线
+ 商品四象限散点分布图
+ 
 ```sql
-99.9%分位数作为参考线  
-WITH cte AS (  
-    SELECT item_id,  
-           SUM(CASE WHEN behavior = 'pv' THEN 1 ELSE 0 END) AS 浏览量,  
-           SUM(CASE WHEN behavior = 'buy' THEN 1 ELSE 0 END) AS 购买量  
-  FROM userbehavior  
-    WHERE behavior IN ('pv','buy')  
-    GROUP BY item_id  
-),  
-ranked AS (  
+create table 商品四象限散点分布图 as  
+select item_id,  
+       sum(case when behavior = 'pv' then 1 else 0 end)  as '浏览量',  
+       sum(case when behavior = 'buy' then 1 else 0 end) as '购买量'  
+from userbehavior  
+where behavior in ('pv', 'buy')  
+group by item_id;
+```
+取99.9%分位数作为参考线
+
+```sql
+WITH ranked AS (  
     SELECT *,  
            ROW_NUMBER() OVER (ORDER BY 浏览量)  AS rn_pv,  
            ROW_NUMBER() OVER (ORDER BY 购买量) AS rn_buy,  
@@ -549,15 +552,4 @@ SELECT MIN(CASE WHEN rn_pv >= total_cnt * 0.999 THEN 浏览量 END)  AS 浏览�
 FROM ranked;
 ```
 
-
- 商品四象限散点分布图
-```sql
-create table 商品四象限散点分布图 as  
-select item_id,  
-       sum(case when behavior = 'pv' then 1 else 0 end)  as '浏览量',  
-       sum(case when behavior = 'buy' then 1 else 0 end) as '购买量'  
-from userbehavior  
-where behavior in ('pv', 'buy')  
-group by item_id;
-```
 ![图片描述](screenshots/商品四象限散点分布.png) 
