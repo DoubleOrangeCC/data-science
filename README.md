@@ -550,6 +550,7 @@ WITH ranked AS (
 SELECT MIN(CASE WHEN rn_pv >= total_cnt * 0.999 THEN 浏览量 END)  AS 浏览量_99分位,  
        MIN(CASE WHEN rn_buy >= total_cnt * 0.999 THEN 购买量 END) AS 购买量_99分位  
 FROM ranked;
+#99.9%分位:浏览量1414,购买量42
 ```
 
 ![图片描述](screenshots/商品四象限散点分布.png) 
