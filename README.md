@@ -233,6 +233,21 @@ order by date;
 ```
 ![图片描述](screenshots/每日跳失率.png)  
 
+连续登录n天用户数
+```sql
+#标记法
+with cte as (select user_id, date from userbehavior group by user_id, date),
+     cte2 as (select user_id, date, lag(date) over (partition by user_id order by date) as last_date from cte),
+     cte3 as (select user_id,
+                     date,
+                     case when date = last_date + interval 1 day or last_date is null then 0 else 1 end as mark
+              from cte2),
+     cte4 as (select user_id, sum(mark) over (partition by user_id order by date) as mark from cte3),
+     cte5 as (select user_id, count(*) as cnt from cte4 group by user_id, mark having count(*) = n)
+select count(distinct user_id) as cnt
+from cte5;
+```
+
 #### 用户留存
 
 基于活跃用户的留存率
@@ -411,6 +426,33 @@ order by cnt desc;
 ![图片描述](screenshots/不同行为路径用户数.png) 
 ![图片描述](screenshots/不同行为路径用户数2.png) 
 
+#### 不同路径对用户购买的转化率(剔除其他行为影响)
+```sql
+#基于用户维度
+#浏览-购买(无收藏/加购行为)
+select sum(case when pv = 1 and cart = 0 and fav = 0 then 1 else 0 end)             as '浏览用户数',
+       sum(case when pv = 1 and cart = 0 and fav = 0 and buy = 1 then 1 else 0 end) as '购买用户数',
+       sum(case when pv = 1 and cart = 0 and fav = 0 and buy = 1 then 1 else 0 end) /
+       sum(case when pv = 1 and cart = 0 and fav = 0 then 1 else 0 end)             as '转化率'
+from 用户不同行为真值表;
+#浏览-加购-收藏-购买
+select sum(case when pv = 1 and cart = 1 and fav = 1 then 1 else 0 end)             as '浏览-加购-收藏用户数',
+       sum(case when pv = 1 and cart = 1 and fav = 1 and buy = 1 then 1 else 0 end) as '浏览-加购-收藏-购买用户数',
+       sum(case when pv = 1 and cart = 1 and fav = 1 and buy = 1 then 1 else 0 end) /
+       sum(case when pv = 1 and cart = 1 and fav = 1 then 1 else 0 end)             as '转化率'
+from 用户不同行为真值表;
+#浏览-加购-购买(无收藏行为)
+select sum(case when pv = 1 and cart = 1 and fav = 0 then 1 else 0 end)             as '浏览-加购用户数',
+       sum(case when pv = 1 and cart = 1 and fav = 0 and buy = 1 then 1 else 0 end) as '浏览-加购-购买用户数',
+       sum(case when pv = 1 and cart = 1 and fav = 0 and buy = 1 then 1 else 0 end)/sum(case when pv = 1 and cart = 1 and fav = 0 then 1 else 0 end) as '转化率'
+from 用户不同行为真值表;
+#浏览-收藏-购买(无加购行为)
+select sum(case when pv = 1 and cart = 0 and fav = 1 then 1 else 0 end)             as '浏览-收藏用户数',
+       sum(case when pv = 1 and cart = 0 and fav = 1 and buy = 1 then 1 else 0 end) as '浏览-收藏-购买用户数',
+       sum(case when pv = 1 and cart = 0 and fav = 1 and buy = 1 then 1 else 0 end)/sum(case when pv = 1 and cart = 0 and fav = 1 then 1 else 0 end) as '转化率'
+from 用户不同行为真值表;
+```
+
 #### 用户分类
 
 用户价值模型RFM
@@ -554,3 +596,4 @@ FROM ranked;
 ```
 
 ![图片描述](screenshots/商品四象限散点分布.png) 
+
