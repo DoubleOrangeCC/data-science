@@ -313,8 +313,10 @@ order by date;
 ```
 ![图片描述](screenshots/活跃用户次日留存.png)  
 ![图片描述](screenshots/用户留存.png)  
-
-![图片描述](screenshots/优化前查询用时.png)  
+用时对比(均已添加对应索引,否则用时超过1h)
+优化前用时
+![图片描述](screenshots/优化前查询时间.png)  
+优化后用时
 ![图片描述](screenshots/优化后查询用时.png)  
 
 
