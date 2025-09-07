@@ -194,7 +194,15 @@ where datetime > '2017-12-03 23:59:59'
 后续所有SQL语句查询结果均储存为新表以便Tableau直接调用
 
 ### 数据总览
-
+```sql
+create table 数据总览 as
+select
+  count(distinct user_id) as '总用户数',
+  count(distinct item_id) as '总商品数',
+  count(distinct category_id) as '总商品类目数',
+  count(behavior) as '行为总次数'
+from userbehavior;
+```
 
 ```sql
 create table 每日数据总览 as  
@@ -248,8 +256,37 @@ order by date;
 跳失率:用户在仅访问一个页面后就离开的比例,是衡量网站吸引力和用户体验的重要指标.每日的跳失率在12.2%到13.7%之间波动,表明网站或应用的用户体验相对较好,大部分用户在访问后会进行其他行为,而不仅仅是停留在单个页面上.
 
 ##### 新增用户首日核心行为完成率
+
 ##### 新增用户首日首单率
+```sql
+新增用户首日首单率
+with cte as (select user_id, min(date) as fir_d, min(case when behavior = 'buy' then date end) as if_buy_date
+             from userbehavior
+             group by user_id)
+select fir_d                                     as 日期,
+       count(user_id)                            as 新增用户数,
+       sum(if_buy_date = fir_d)                  as 新增用户首日首单数,
+       sum(if_buy_date = fir_d) / count(user_id) as 新增用户首日首单率
+from cte
+group by fir_d
+order by 日期;
+```
+
 ##### 新增用户首单转化时间
+```sql
+create table 新增用户首单转化时间 as
+with cte as (select user_id,
+                    min(date)                                                                                      as fir_d,
+                    timestampdiff(second, min(datetime), min(case when behavior = 'buy' then datetime end)) /
+                    3600                                                                                           as diff
+             from userbehavior
+             group by user_id)
+select fir_d as 日期, round(avg(diff),1) as 每日新增用户平均首单转化小时
+from cte
+where diff is not null
+group by fir_d
+order by 1;
+```
 
 #### Retention留存
 
